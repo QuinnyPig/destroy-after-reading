@@ -1,0 +1,52 @@
+service: shortlink-killer
+
+provider:
+  name: aws
+  runtime: python3.7
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:DeleteObject
+        - s3:GetObject
+      Resource: 'arn:aws:s3:::BUCKET/*'
+
+functions:
+  cfLambda:
+    handler: handler.nuke
+    events:
+      - cloudFront:
+          eventType: viewer-response
+          origin: 'https://BUCKET.s3-website.us-west-2.amazonaws.com'
+resources:
+  Resources:
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Origins:
+            - Id: 'S3-BUCKET'
+              DomainName: 'BUCKET.s3-website.us-west-2.amazonaws.com'
+              CustomOriginConfig:
+                HTTPPort: 80
+                HTTPSPort: 443
+                OriginKeepaliveTimeout: 5
+                OriginProtocolPolicy: 'http-only'
+                OriginReadTimeout: 30
+                OriginSSLProtocols: 
+                  - TLSv1
+                  - TLSv1.1
+                  - TLSv1.2
+          Aliases:
+            - 'MY_DOMAIN'
+          DefaultCacheBehavior:
+            ForwardedValues:
+                QueryString: false
+            TargetOriginId: 'S3-BUCKET'
+            DefaultTTL: 0
+            MaxTTL: 0
+            ViewerProtocolPolicy: 'redirect-to-https'
+          DefaultRootObject: 'index.html'
+          Enabled: true
+          ViewerCertificate:
+            AcmCertificateArn: 'MY_ACM_CERTIFICATE_ARN'
+            SslSupportMethod: sni-only
